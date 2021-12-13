@@ -11,15 +11,14 @@ const categories = [{type:"Category",value:"none",unavailable:true},
 
 function MyListbox(props) {
   const [selectedCategory, setSelectedCategory] = useState(categories[0]);
-  const [beginningSelected, setBeginningSelected] = useState(false);
   const [hoverIndex, setHoverIndex] = useState(-1);
 
   return (
     <Listbox
-    value={selectedCategory} onChange={(category)=>{setSelectedCategory(category); setBeginningSelected(false)} }>
+    value={selectedCategory} onChange={setSelectedCategory}>
       <div className="relative mt-1">
       <Listbox.Button 
-        class={" bg-gray-50 w-60 h-10 text-left border rounded-xl " + (beginningSelected?" border-red-700":" border-gray-700")} 
+        class=" bg-gray-50 w-60 h-10 text-left border rounded-xl border-gray-700" 
       >
       {selectedCategory.type}
       </Listbox.Button>
@@ -27,7 +26,7 @@ function MyListbox(props) {
         class=" absolute mt-2 rounded-xl bg-gray-50 w-60 h-44"
         onClick={(event)=>{
           (event.target.value !== "none") && props.SetIsSelectedCategory(true);
-          props.selectedCategory(event.target.value);
+          props.selectedCategory(event.target.value,event.target.type);
           }}>
         {categories.map((category,i) => (
           <Listbox.Option 
@@ -58,23 +57,20 @@ function HomePage(props) {
       </p>
       <MyListbox SetIsSelectedCategory={SetIsSelectedCategory} selectedCategory={props.selectedCategory}/>
 
-      <div>
         <button 
-          className="mt-14 rounded-xl h-10 w-24 bg-green-600 text-white"
+          className="mt-14 h-10 w-24 rounded-xl  bg-green-600 text-white"
           onClick={props.start}
           disabled={!isSelectedCategory}
         >
           Start
         </button>
 
-      <div>
         <button
-        className=" w-28 h-10 text-sm rounded-xl font-semibold bg-green-600 text-white"
+        className="mt-12 w-36 h-10 rounded-xl bg-green-600 text-white"
         onClick={props.previousAnswers}>
-        Answers
+        Previous Answers
         </button>
-      </div>
-      </div>
+
     </div>
   );
 }
@@ -86,7 +82,6 @@ function QuestionsPage(props) {
   const [HoverIndex, setHoverIndex] = useState(-1);
   const [url, setUrl] = useState("https://opentdb.com/api.php?amount=10&category=" + props.categor + "&difficulty=easy&type=multiple&encode=url3986");
   const [questions, setQuestions] = useState([{question:"",correct_answer:"",sorted_answers:[""],user_answer:""}]);
-
    useEffect(() => {
     fetch(url).then(response => {
       if(response.ok)
@@ -155,27 +150,24 @@ function QuestionsPage(props) {
 
 function Answers(props) {
   const [index, setIndex] = useState(0);
-  const [answers, setAnswers] = useState([]);
-  const [isLoad, setIsLoad] = useState(false)
-
-  useEffect(() => {
-    let previousAnswers = JSON.parse(localStorage.getItem("preAnswers"))
-    setAnswers(previousAnswers.pop());
-    setIsLoad(true);
-  },[]);
-
-  let ans = [],quest = "";
-  if(isLoad) {
-  ans = answers[index]
+  debugger
+  let ans = props.answers.previousAnswers[index]
   .sorted_answers
-  .map((answer)=> 
-    <div className="mb-8 ml-12 rounded-xl font-medium text-center w-48 h-full border border-green-800">
+  .map((answer)=> {
+    let bg;
+    if(answer===props.answers.previousAnswers[index].correct_answer) {
+      bg = " bg-green-500 text-white";
+    } else if(answer===props.answers.previousAnswers[index].user_answer) {
+      bg = " bg-red-600 text-white";
+    }
+    return (
+    <div className={"mb-8 ml-12 rounded-xl font-medium text-center w-48 h-full border border-green-800 " + bg }>
       <p class="mt-6">{answer} </p>
     </div>
-  );
-  quest = answers[index].question;
-  
+    )
   }
+  );
+  debugger
   return ( 
     <div class="grid place-items-center">
       <h1 class="mt-24 mb-6 text-4xl text-green-700 font-bold "> 
@@ -185,27 +177,97 @@ function Answers(props) {
         Easy
       </div>
       <p class="font-bold text-xl mt-10 mb-20 grid place-items-center">
-      {decodeURIComponent(quest)}
+      {decodeURIComponent(props.answers.previousAnswers[index].question)}
       </p>
       <div class=" grid grid-cols-4">
         {ans}
       </div>
-      <button  class="w-10 h-20"
+      <span>
+      <button  class="rounded-xl bg-green-600 text-white w-28 h-10 m-10 ml-0"
         onClick={()=>((index - 1) >= 0) && setIndex(index-1)}>
         previous
       </button>
-      <button  class="w-10 h-20"
+      <button  class="rounded-xl bg-green-600 text-white w-28 h-10"
         onClick={()=>((index + 1 ) < questionsCount) && setIndex(index+1)}>
         next
       </button>
-      <button
-        class=" w-28 h-10 text-sm rounded-xl font-semibold bg-green-600 text-white"
-        onClick={props.backToHome}>
-      Back To Home
-      </button>
+      </span>
+
     </div>
   );
 } 
+
+function ListPreviousAnswers(props) {
+
+const [HoverIndex, setHoverIndex] = useState(-1);
+debugger
+  return (
+    <div>
+      {
+        props.previousAnswersList.map((result, i)=> 
+        <button 
+          value = {i} 
+          className={"mb-12 mr-10 rounded-xl font-medium text-center w-48 h-full flex-1" + (HoverIndex===i?" bg-gray-200 text-green-600":" border border-green-800")}
+          onMouseOver={()=>setHoverIndex(i)}
+          onMouseOut={()=>setHoverIndex(-1)}
+          onClick = {(event) => {props.setIndex(i); props.setPage("answers");}
+          }
+        >
+          {(i+1) + ".  " + result.result + "/10" } 
+        </button>
+      )}
+    </div>
+  )
+}
+
+function PreviousAnswers(props) {
+
+  const [page, setPage] = useState("loading");
+  const [previousAnswers,setPreviousAnswers] = useState([]);
+  const [index,setIndex] = useState(-1);
+  const [loadingState,setLoadingState] = useState("Loading...");
+
+  useEffect(() => {
+    let previousAnswers = JSON.parse(localStorage.getItem("AnswersHistory"))
+    if(previousAnswers) {
+      setPreviousAnswers(previousAnswers);
+      setPage("previousAnswersList");
+    } else {
+      setLoadingState("Not found previous answers");
+    }
+  },[]);
+
+    return (
+      <div class ="grid place-items-center">
+      { page === "previousAnswersList" && (
+      <ListPreviousAnswers 
+        setPage={setPage}
+        setIndex={setIndex}
+        previousAnswersList={previousAnswers}
+      />
+      )}
+  
+      { page === "answers" && (
+      <Answers 
+        answers={previousAnswers[index]}
+        backToHome={props.backToHome}
+      />
+      )}
+
+      { page === "loading" &&
+        <div>
+          <p class="grid place-items-center mt-28 text-4xl text-green-700 font-bold"> loadingState </p>
+        </div>
+      }
+      <button
+        class=" mt-16 w-28 h-10 text-sm rounded-xl font-semibold bg-green-600 text-white"
+        onClick={props.backToHome}>
+      Back To Home
+      </button>
+      </div>
+    )
+}
+
 
 function ResultPage(props) {
   return(
@@ -220,13 +282,13 @@ function ResultPage(props) {
       <button
         className=" w-28 h-10 text-sm rounded-xl font-semibold bg-green-600 text-white"
         onClick={props.backToHome}>
-      Back To Home
+        Back To Home
       </button>
       
       <button
-        className=" w-28 h-10 text-sm rounded-xl font-semibold bg-green-600 text-white"
+        className="mt-12 w-36 h-10 rounded-xl bg-green-600 text-white"
         onClick={props.previousAnswers}>
-        Answers
+        Previous Answers
       </button>
 
     </div>
@@ -236,19 +298,18 @@ function ResultPage(props) {
 function App() {
 
   const [page, setPage] = useState("home");
-  const [category, setCategory] = useState("category");
+  const [category, setCategory] = useState({type:"category",value:"none"});
   const [result, setResult] = useState(0);
   const [answers, setAnswers] = useState([]);
 
   useEffect(() => {
   if(answers.length) {
-    let previousAnswers = JSON.parse(localStorage.getItem("preAnswers"));
+    let previousAnswers = JSON.parse(localStorage.getItem("AnswersHistory"));
     if(!previousAnswers) {
-      localStorage.setItem("preAnswers", JSON.stringify([answers])); 
+      localStorage.setItem("AnswersHistory", JSON.stringify([{previousAnswers:answers,result:result,category:category}])); 
     } else {
-      localStorage.removeItem("preAnswers");
-      previousAnswers.push(answers);
-      localStorage.setItem("preAnswers", JSON.stringify(previousAnswers));
+      previousAnswers.push({previousAnswers:answers,result:result,category:category});
+      localStorage.setItem("AnswersHistory", JSON.stringify(previousAnswers));
     }
   }
  },[answers]);
@@ -258,7 +319,7 @@ function App() {
       {
         page === "home" && (
           <HomePage start = {() => setPage("questions")} 
-          selectedCategory={(category)=>{setCategory(category);}}
+          selectedCategory={(type,value)=>{setCategory({type,value});}}
           previousAnswers={()=>setPage("answers")}
         />
         )
@@ -267,12 +328,12 @@ function App() {
       {
         page === "questions" && (
         <QuestionsPage 
-        categor= {category} 
+        categor= {category.value} 
         setResultAndAnswers = {
           (res,answers) => {
             setPage("result"); 
             setResult(res);
-            setAnswers(answers) 
+            setAnswers(answers)
           }
         }
         />
@@ -289,8 +350,8 @@ function App() {
 
       {
         page === "answers" && (
-          <Answers
-            backToHome={()=>setPage("home") } 
+          <PreviousAnswers
+            backToHome={()=>setPage("home")} 
           />
         )
       }
